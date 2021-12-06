@@ -80,7 +80,20 @@ update the host machine private ip to ansible hosts details under
 sudo su
 cd /etc/ansible
 ls
-vi hosts  -- update the IP of client windows machine IP
+vi hosts  -- update the IP of client windows machine IP and some conditions-(following)
+---
+[win]
+172.31.89.56
+
+[win:vars]
+ansible_user=Administrator
+ansible_password="Nl8qe7b.hXl5NMIPZQUcLqfZ6&olWjb!"
+ansible_connection=winrm
+ansible_winrm_server_cert_validation=ignore
+ansible_winrm_transport=basic
+ansible_python_interpreter=C:\Users\Administrator\AppData\Local\ProgramPython310\python.exe
+
+----
 then create a folder in home dir
 write the abnsible playbook to performe the operation in client machine
 
