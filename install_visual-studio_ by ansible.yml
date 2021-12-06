@@ -1,0 +1,113 @@
+install the visual studio code by ansible in (linux-master machine and windows- client machine) through ansible
+
+prerequisite:
+------------
+ client windows machine
+ - .net version 4 & above
+ - powershell version 3 and above
+ 
+ How to install/update both (.net version and powershell version)
+ ----------------------------------------------------------------
+ 
+ Here is how to upgrade windows powershell version.
+
+$url = "https://raw.githubusercontent.com/jborean93/ansible-windows/master/scripts/Upgrade-PowerShell.ps1"
+$file = "$env:temp\Upgrade-PowerShell.ps1"
+$username = "Administrator"
+$password = "Password"
+(New-Object -TypeName System.Net.WebClient).DownloadFile($url, $file)
+Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force
+# Version can be 3.0, 4.0 or 5.1
+&$file -Version 5.1 -Username $username -Password $password -Verbose
+
+
+Once completed, you will need to remove auto logon and set the execution policy back to the default of Restricted. You can do this with the following PowerShell commands:
+
+# This isn't needed but is a good security practice to complete
+Set-ExecutionPolicy -ExecutionPolicy Restricted -Force
+$reg_winlogon_path = "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon"
+Set-ItemProperty -Path $reg_winlogon_path -Name AutoAdminLogon -Value 0
+Remove-ItemProperty -Path $reg_winlogon_path -Name DefaultUserName -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path $reg_winlogon_path -Name DefaultPassword -ErrorAction SilentlyContinue
+
+
+
+To use this script, run the following in PowerShell:
+$url = "https://raw.githubusercontent.com/ansible/ansible/devel/examples/scripts/ConfigureRemotingForAnsible.ps1"
+$file = "$env:temp\ConfigureRemotingForAnsible.ps1"
+(New-Object -TypeName System.Net.WebClient).DownloadFile($url, $file)
+powershell.exe -ExecutionPolicy ByPass -File $file
+
+Once the script has run, you can get current winrm configuration using 
+
+winrm quickconfig -q
+winrm get winrm/config
+
+From the output we can see 
+AllowUnencrypted = false
+
+We need to enable AllowUnencrypted and Basic auth for winrm connection for basic winrm setup.
+
+In documentation it is suggested to run following command 
+
+winrm set winrm/config/service @{AllowUnencrypted="true"}
+winrm set winrm/config/service/auth @{Basic="true"} 
+
+However, it appears this command fails on latest Windows 10.
+
+But following powershell command worked
+
+Set-Item -Force WSMan:\localhost\Service\Allowunencrypted $True
+
+However, this requires network connection type should be set to private.
+Which could be done in this manner.
+
+Once done both commands worked like charm.
+
+Set-Item -Force WSMan:\localhost\Service\Allowunencrypted $True
+Set-Item -Force WSMan:\localhost\Service\auth\Basic $True
+
+
+prerequisite for linux master machine:
+--------------------------------------
+
+yum upate / apt-get update
+yum install python -y / apt-get install python -y
+yum install ansible -y / apt-get install ansible -y
+
+
+update the host machine private ip to ansible hosts details under 
+sudo su
+cd /etc/ansible
+ls
+vi hosts  -- update the IP of client windows machine IP
+then create a folder in home dir
+write the abnsible playbook to performe the operation in client machine
+
+Example:
+
+Ansible play book to install visual studio code on windows machine
+---
+- hosts: all
+  tasks:
+
+  - name: Install package dependencies
+    win_chocolatey:
+      name:
+       - chocolatey-core.extension
+       - chocolatey-windowsupdate.extension
+      state: present
+
+  - name: Install VS Code and PowerShell Preview
+    win_chocolatey:
+      name:
+      - vscode.install
+      - powershell-preview
+      state: present
+
+----------------
+
+To run the ansible plaebook by following cmd
+
+#ansible-playbook <name.yml> --syntax-check
+#ansible-playbook <name.yml>
